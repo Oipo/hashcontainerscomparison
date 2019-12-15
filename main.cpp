@@ -20,7 +20,7 @@ class wyhash_function
 public:
     size_t operator()(Key t) const
     {
-        return wyhash(&t, sizeof(t), 1);
+        return wyhash(&t, sizeof(t), 1283474321412);
     }
 };
 
@@ -169,6 +169,32 @@ static void xxhash_large(benchmark::State& state) {
 }
 BENCHMARK(xxhash_large);
 
+static void stdhash(benchmark::State& state) {
+    string hashstr = "hash";
+    uint64_t res = 0;
+    for (auto _ : state) {
+        res += hash<string>{}(hashstr);
+    }
+
+    PREVENT_OPT(res);
+}
+BENCHMARK(stdhash);
+
+static void stdhash_large(benchmark::State& state) {
+    stringstream hashbuilder{};
+    for(uint32_t i = 0; i < 1'000'000; i++) {
+        hashbuilder << "hash";
+    }
+    string hashstr = hashbuilder.str();
+    uint64_t res = 0;
+    for (auto _ : state) {
+        res += hash<string>{}(hashstr);
+    }
+
+    PREVENT_OPT(res);
+}
+BENCHMARK(stdhash_large);
+
 static void unordered_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         unordered_map<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -208,6 +234,16 @@ static void unordered_xxhash(benchmark::State& state) {
     }
 }
 BENCHMARK(unordered_xxhash);
+
+static void unordered_stdhash(benchmark::State& state) {
+    for (auto _ : state) {
+        unordered_map<uint32_t, uint32_t, hash<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(unordered_stdhash);
 
 static void robinmap_wyhash(benchmark::State& state) {
     for (auto _ : state) {
@@ -249,6 +285,16 @@ static void robinmap_xxhash(benchmark::State& state) {
 }
 BENCHMARK(robinmap_xxhash);
 
+static void robinmap_stdhash(benchmark::State& state) {
+    for (auto _ : state) {
+        tsl::robin_map<uint32_t, uint32_t, hash<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap_stdhash);
+
 static void f14map_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         folly::F14FastMap<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -288,6 +334,16 @@ static void f14map_xxhash(benchmark::State& state) {
     }
 }
 BENCHMARK(f14map_xxhash);
+
+static void f14map_stdhash(benchmark::State& state) {
+    for (auto _ : state) {
+        folly::F14FastMap<uint32_t, uint32_t, hash<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(f14map_stdhash);
 
 static void abslmap_wyhash(benchmark::State& state) {
     for (auto _ : state) {
@@ -329,6 +385,16 @@ static void abslmap_xxhash(benchmark::State& state) {
 }
 BENCHMARK(abslmap_xxhash);
 
+static void abslmap_stdhash(benchmark::State& state) {
+    for (auto _ : state) {
+        absl::flat_hash_map<uint32_t, uint32_t, hash<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(abslmap_stdhash);
+
 static void robinmap2_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         robin_hood::unordered_flat_map<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -368,6 +434,16 @@ static void robinmap2_xxhash(benchmark::State& state) {
     }
 }
 BENCHMARK(robinmap2_xxhash);
+
+static void robinmap2_stdhash(benchmark::State& state) {
+    for (auto _ : state) {
+        robin_hood::unordered_flat_map<uint32_t, uint32_t, hash<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap2_stdhash);
 #endif
 
 static void spdlog_bench_json(benchmark::State& state) {
