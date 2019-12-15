@@ -7,6 +7,10 @@
 #include <absl/container/flat_hash_map.h>
 #include <benchmark/benchmark.h>
 #include <sstream>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <xxh3.h>
+#include <robin_hood.h>
 
 using namespace std;
 
@@ -40,6 +44,16 @@ public:
     }
 };
 
+template<class Key>
+class xxhash_function
+{
+public:
+    size_t operator()(Key t) const
+    {
+        return XXH3_64bits(&t, sizeof(t));
+    }
+};
+
 #define PREVENT_OPT(VAR) \
     volatile auto copy1 = *((char*)&VAR); \
     volatile auto copy2 = *((char*)&VAR); \
@@ -48,6 +62,9 @@ public:
         throw runtime_error("Cannot happen, but compiler cannot know this"); \
     }
 
+#define ENABLE_HASH_BENCHES
+
+#ifdef ENABLE_HASH_BENCHES
 static void wyhash(benchmark::State& state) {
     string hash = "hash";
     uint64_t res = 0;
@@ -126,6 +143,32 @@ static void abslhash_large(benchmark::State& state) {
 }
 BENCHMARK(abslhash_large);
 
+static void xxhash(benchmark::State& state) {
+    string hash = "hash";
+    uint64_t res = 0;
+    for (auto _ : state) {
+        res += XXH3_64bits(hash.c_str(), hash.size());
+    }
+
+    PREVENT_OPT(res);
+}
+BENCHMARK(xxhash);
+
+static void xxhash_large(benchmark::State& state) {
+    stringstream hashbuilder{};
+    for(uint32_t i = 0; i < 1'000'000; i++) {
+        hashbuilder << "hash";
+    }
+    string hash = hashbuilder.str();
+    uint64_t res = 0;
+    for (auto _ : state) {
+        res += XXH3_64bits(hash.c_str(), hash.size());
+    }
+
+    PREVENT_OPT(res);
+}
+BENCHMARK(xxhash_large);
+
 static void unordered_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         unordered_map<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -155,6 +198,16 @@ static void unordered_abslhash(benchmark::State& state) {
     }
 }
 BENCHMARK(unordered_abslhash);
+
+static void unordered_xxhash(benchmark::State& state) {
+    for (auto _ : state) {
+        unordered_map<uint32_t, uint32_t, xxhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(unordered_xxhash);
 
 static void robinmap_wyhash(benchmark::State& state) {
     for (auto _ : state) {
@@ -186,6 +239,16 @@ static void robinmap_abslhash(benchmark::State& state) {
 }
 BENCHMARK(robinmap_abslhash);
 
+static void robinmap_xxhash(benchmark::State& state) {
+    for (auto _ : state) {
+        tsl::robin_map<uint32_t, uint32_t, xxhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap_xxhash);
+
 static void f14map_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         folly::F14FastMap<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -216,6 +279,16 @@ static void f14map_abslhash(benchmark::State& state) {
 }
 BENCHMARK(f14map_abslhash);
 
+static void f14map_xxhash(benchmark::State& state) {
+    for (auto _ : state) {
+        folly::F14FastMap<uint32_t, uint32_t, xxhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(f14map_xxhash);
+
 static void abslmap_wyhash(benchmark::State& state) {
     for (auto _ : state) {
         absl::flat_hash_map<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
@@ -245,6 +318,72 @@ static void abslmap_abslhash(benchmark::State& state) {
     }
 }
 BENCHMARK(abslmap_abslhash);
+
+static void abslmap_xxhash(benchmark::State& state) {
+    for (auto _ : state) {
+        absl::flat_hash_map<uint32_t, uint32_t, xxhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(abslmap_xxhash);
+
+static void robinmap2_wyhash(benchmark::State& state) {
+    for (auto _ : state) {
+        robin_hood::unordered_flat_map<uint32_t, uint32_t, wyhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap2_wyhash);
+
+static void robinmap2_farmhash(benchmark::State& state) {
+    for (auto _ : state) {
+        robin_hood::unordered_flat_map<uint32_t, uint32_t, farmhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap2_farmhash);
+
+static void robinmap2_abslhash(benchmark::State& state) {
+    for (auto _ : state) {
+        robin_hood::unordered_flat_map<uint32_t, uint32_t, abslhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap2_abslhash);
+
+static void robinmap2_xxhash(benchmark::State& state) {
+    for (auto _ : state) {
+        robin_hood::unordered_flat_map<uint32_t, uint32_t, xxhash_function<uint32_t>> m{};
+        for(uint32_t i = 0; i < 1'000'000; i++) {
+            m[i] = i;
+        }
+    }
+}
+BENCHMARK(robinmap2_xxhash);
+#endif
+
+static void spdlog_bench_json(benchmark::State& state) {
+    auto time_since_epoch = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
+    auto file_sink = make_shared<spdlog::sinks::basic_file_sink_mt>(fmt::format("logs/log-{}.txt", time_since_epoch.count()), true);
+
+    auto logger = make_shared<spdlog::logger>("multi_sink"s, spdlog::sinks_init_list{file_sink});
+    spdlog::set_default_logger(logger);
+
+    for (auto _ : state) {
+        spdlog::info(R"({ "test": {"key": 1}})");
+    }
+
+    state.SetItemsProcessed(state.iterations());
+}
+BENCHMARK(spdlog_bench_json);
 
 int main(int argc, char** argv) {
     string hash = "hash";
