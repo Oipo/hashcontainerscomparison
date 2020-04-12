@@ -3,10 +3,11 @@ project(hashcontainerscomparison)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -maes -mavx -mavx2 -DXXH_INLINE_ALL -DXXH_CPU_LITTLE_ENDIAN=1 -DSPDLOG_NO_EXCEPTIONS")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/abseil-cpp)
 
-add_executable(hashcontainerscomparison main.cpp ${CMAKE_SOURCE_DIR}/external/xxHash/xxhash.c)
+add_executable(hashcontainerscomparison src/main.cpp src/map_benches.cpp src/hash_benches.cpp ${CMAKE_SOURCE_DIR}/external/xxHash/xxhash.c)
 
 include_directories("${CMAKE_SOURCE_DIR}/external/wyhash")
 include_directories("${CMAKE_SOURCE_DIR}/external/robin-map/include")
@@ -21,4 +22,3 @@ include_directories("${CMAKE_SOURCE_DIR}/external/spdlog/include")
 target_link_libraries(hashcontainerscomparison ${CMAKE_SOURCE_DIR}/external/benchmark/build/src/libbenchmark.a)
 target_link_libraries(hashcontainerscomparison ${CMAKE_SOURCE_DIR}/external/folly/_build/libfolly.a)
 target_link_libraries(hashcontainerscomparison absl::base absl::flat_hash_map absl::hash)
-target_link_libraries(hashcontainerscomparison -lpthread)
